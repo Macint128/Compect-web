@@ -45,42 +45,67 @@ Set(body){
     </div>
     <div id="preview"></div>
     <div id="guide">
-<h2>Compect Web 문법 안내서</h2>
+<h2>Compect Web 문법 안내서 (업데이트)</h2>
+
 <h3>1. 기본 구조</h3>
 <pre>
 Set(basic){
     Set(head){
-        {lang:en}
-        {title:"Page Title"}
-        let styles = [
-            *{ box-sizing:border-box }
+        {lang:en}            // HTML lang
+        {title:"Page Title"} // 페이지 제목
+        let styles = [       // CSS 스타일
+            *{ box-sizing:border-box } // 모든 요소에 적용
         ]
     }
     Set(body){
-        (div){ "Content here" }
+        (div){ "Content here" } // 본문 내용
     }
 }
 </pre>
-<h3>2. 변수 / 비교 / 딕셔너리</h3>
+
+<h3>2. 스타일(let styles) 사용</h3>
+<p>- <code>let styles = [ ... ]</code> → <code>&lt;style&gt; ... &lt;/style&gt;</code> 로 변환</p>
+<p>- <code>*{ ... }</code> → HTML의 모든 요소에 적용 (CSS 전체 선택자)</p>
+<pre>
+let styles = [
+    *{
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+]
+</pre>
+<p>- 다른 CSS 선택자도 그대로 사용 가능:</p>
+<pre>
+let styles = [
+    h1{ color: red; }
+    p{ font-size: 16px; }
+]
+</pre>
+
+<h3>3. 변수 / 비교 / 딕셔너리</h3>
 <pre>
 let x = 10
 if x == 10
 { key1: value1, key2: value2 }
 </pre>
-<h3>3. 스크립트 사용</h3>
+
+<h3>4. 스크립트 사용</h3>
 <pre>
-<function greet(){
+&lt;function greet(){
     alert("Hello!");
-}>
+}&gt;
 (button ~>[onclick:"greet()"]){ "Click me" }
 </pre>
-<h3>4. Snippets</h3>
+
+<h3>5. Snippets</h3>
 <pre>
 - Set 기본 구조
 - 버튼
 - 스타일: let styles = [ *{ ... } ]
 </pre>
-<h3>5. 파일 확장자</h3>
+
+<h3>6. 파일 확장자</h3>
 <pre>
 .cw  -> Compect Web 코드
 .html -> 브라우저에서 실행 가능한 HTML
