@@ -12,6 +12,7 @@ body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; he
 #container { flex:1; display:flex; flex-direction:row; }
 #editor { flex:1; border-right:1px solid #ccc; padding:5px; background:#1e1e1e; color:white; font-family:monospace; overflow:auto; white-space:pre; }
 #preview { flex:1; overflow:auto; padding:10px; background:#f9f9f9; }
+input[type=file] { display:none; }
 </style>
 </head>
 <body>
@@ -21,6 +22,8 @@ body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; he
     <button onclick="insertSnippet('btn')">버튼</button>
     <button onclick="downloadFile('cw')">.cw 다운로드</button>
     <button onclick="downloadFile('html')">.html 다운로드</button>
+    <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
+    <input type="file" id="fileInput" accept=".cw,.txt">
 </div>
 
 <div id="container">
@@ -124,7 +127,7 @@ function downloadFile(type){
     if(type === 'cw'){
         content = code;
         filename = 'page.cw';
-        mime = 'application/octet-stream'; // 확장자 그대로 다운로드
+        mime = 'application/octet-stream';
     } else if(type === 'html'){
         content = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<title>Compect Web Page</title>\n</head>\n<body>\n' +
                   parseCompect(code) + '\n</body>\n</html>';
@@ -142,6 +145,20 @@ function downloadFile(type){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+// ---- 파일 업로드 ----
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(ev){
+        editorDiv.innerText = ev.target.result;
+        updatePreview();
+    };
+    reader.readAsText(file);
+});
 </script>
 
 </body>
