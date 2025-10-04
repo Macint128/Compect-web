@@ -12,7 +12,6 @@ body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; he
 #container { flex:1; display:flex; flex-direction:row; }
 #editor { flex:1; border-right:1px solid #ccc; padding:5px; background:#1e1e1e; color:white; font-family:monospace; overflow:auto; white-space:pre; }
 #preview { flex:1; overflow:auto; padding:10px; background:#f9f9f9; }
-textarea { width:100%; height:100%; background:#1e1e1e; color:white; font-family:monospace; border:none; outline:none; resize:none; }
 </style>
 </head>
 <body>
@@ -91,10 +90,7 @@ function updatePreview(){
     previewDiv.innerHTML = parseCompect(code);
 }
 
-// 이벤트: 입력 시 실시간 업데이트
 editorDiv.addEventListener('input', updatePreview);
-
-// 초기 미리보기
 updatePreview();
 
 // ---- Snippets ----
@@ -122,23 +118,28 @@ function insertSnippet(name){
 
 // ---- 파일 다운로드 ----
 function downloadFile(type){
-    let content, filename;
+    let content, filename, mime;
     const code = editorDiv.innerText;
+
     if(type === 'cw'){
         content = code;
         filename = 'page.cw';
+        mime = 'application/octet-stream'; // 확장자 그대로 다운로드
     } else if(type === 'html'){
         content = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<title>Compect Web Page</title>\n</head>\n<body>\n' +
                   parseCompect(code) + '\n</body>\n</html>';
         filename = 'page.html';
+        mime = 'text/html';
     } else { return; }
 
-    const blob = new Blob([content], {type:'text/plain'});
+    const blob = new Blob([content], {type: mime});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 </script>
