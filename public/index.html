@@ -9,7 +9,6 @@
 <link rel="apple-touch-icon" href="icon.png" />
 <meta name="apple-mobile-web-app-title" content="Compect Web IDE" />
 <style>
-/* --- 전체 UI 스타일 --- */
 body {
     margin: 0;
     font-family: sans-serif;
@@ -20,6 +19,7 @@ body {
     color: #fff;
     border-radius: 30px;
 }
+
 #toolbar {
     display: flex;
     gap: 5px;
@@ -28,6 +28,7 @@ body {
     border-radius: 30px;
     align-items: center;
 }
+
 #toolbar button {
     background: #444;
     color: white;
@@ -36,13 +37,16 @@ body {
     border-radius: 20px;
     cursor: pointer;
 }
+
 #toolbar button:hover { background: #666; }
+
 #tabs {
     display: flex;
     background: #333;
     border-radius: 30px;
     overflow: hidden;
 }
+
 #tabs button {
     flex: 1;
     padding: 8px;
@@ -52,7 +56,9 @@ body {
     cursor: pointer;
     border-radius: 20px;
 }
+
 #tabs button.active { background: #555; }
+
 #container {
     flex: 1;
     display: flex;
@@ -60,6 +66,7 @@ body {
     overflow: hidden;
     border-radius: 30px;
 }
+
 #editor, #preview, #guide {
     flex: 1;
     padding: 10px;
@@ -67,9 +74,11 @@ body {
     border-radius: 20px;
     box-sizing: border-box;
 }
+
 #editor { background: #1e1e1e; color: #fff; }
 #preview { border-left: 1px solid #ccc; background: #f9f9f9; color: #000; }
 #guide { display: none; background: #f0f0f0; color: #000; }
+
 input[type="file"] { display: none; }
 .monaco-editor { border-radius: 20px !important; overflow: hidden; }
 </style>
@@ -129,7 +138,7 @@ require(['vs/editor/editor.main'], function() {
             [/\*{/, "operator"],
             [/\{.*\}/, "attribute"],
             [/\(.*\)/, "tag"],
-            [/".*?"/, "string"],
+            [/".*?"/, "string"]
         ]}
     });
     monaco.languages.registerCompletionItemProvider('compectweb', {
@@ -188,31 +197,38 @@ require(['vs/editor/editor.main'], function() {
     }
 
     function parseCompect(code){
-        // 간단 변환: CW 코드를 style/script/head/body HTML로 변환
-        // 실제 IDE용으로는 위에 제공한 robust parser 사용
-        let html = '';
-        const styleMatch = code.match(/let styles = \[([\s\S]*?)\]/);
-        if(styleMatch) html += `<style>${styleMatch[1]}</style>\n`;
-        const scriptMatch = code.match(/let script = \[([\s\S]*?)\]/);
-        if(scriptMatch) html += `<script>${scriptMatch[1]}</script>\n`;
-        const bodyMatch = code.match(/Set\(body\)\{([\s\S]*?)\}/);
-        if(bodyMatch) html += `<body>${bodyMatch[1]}</body>\n`;
+        var html = '';
+        var styleMatch = code.match(/let styles = \[([\s\S]*?)\]/);
+        if(styleMatch) html += '<style>' + styleMatch[1] + '</style>\n';
+
+        var scriptMatch = code.match(/let script = \[([\s\S]*?)\]/);
+        if(scriptMatch) html += '<script>' + scriptMatch[1] + '<\/script>\n';
+
+        var bodyMatch = code.match(/Set\(body\)\{([\s\S]*?)\}/);
+        if(bodyMatch) html += bodyMatch[1] + '\n';
+
         return html;
     }
 
     function updatePreview(){
-        const html = parseCompect(editor.getValue());
-        const preview = document.getElementById('preview');
+        var html = parseCompect(editor.getValue());
+        var preview = document.getElementById('preview');
         preview.innerHTML = html;
     }
+
     editor.onDidChangeModelContent(()=>updatePreview());
     updatePreview();
 
     function downloadFile(type){
-        let content='', filename='';
-        if(type==='cw'){ content = editor.getValue(); filename='page.cw'; }
-        else{ content = '<!DOCTYPE html>\n<html>\n'+parseCompect(editor.getValue())+'</html>'; filename='page.html'; }
-        const a = document.createElement('a');
+        var content='', filename='';
+        if(type==='cw'){
+            content = editor.getValue();
+            filename='page.cw';
+        } else {
+            content = '<!DOCTYPE html>\n<html>\n'+parseCompect(editor.getValue())+'</html>';
+            filename='page.html';
+        }
+        var a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'}));
         a.download = filename;
         document.body.appendChild(a);
@@ -220,15 +236,16 @@ require(['vs/editor/editor.main'], function() {
         document.body.removeChild(a);
     }
 
-    document.getElementById('fileInput').addEventListener('change', e=>{
-        const f=e.target.files[0];
+    document.getElementById('fileInput').addEventListener('change', function(e){
+        var f = e.target.files[0];
         if(!f) return;
-        const reader=new FileReader();
-        reader.onload=ev=>{
+        var reader = new FileReader();
+        reader.onload = function(ev){
             editor.setValue(ev.target.result);
         };
         reader.readAsText(f);
     });
+
 });
 </script>
 </body>
