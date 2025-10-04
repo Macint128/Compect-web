@@ -14,7 +14,6 @@ body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; he
 #tabs button.active { background:#555; }
 #container { flex:1; display:flex; flex-direction:row; overflow:hidden; }
 #editor, #preview, #guide { flex:1; padding:5px; overflow:auto; }
-#editor { border-right:1px solid #ccc; background:#1e1e1e; color:white; font-family:monospace; white-space:pre; }
 #preview { border-left:1px solid #ccc; background:#f9f9f9; }
 #guide { display:none; background:#f0f0f0; color:#000; }
 input[type=file] { display:none; }
@@ -28,7 +27,7 @@ input[type=file] { display:none; }
     <button onclick="downloadFile('cw')">.cw 다운로드</button>
     <button onclick="downloadFile('html')">.html 다운로드</button>
     <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
-    <input type="file" id="fileInput" accept=".cw,.txt">
+    <input type="file" id="fileInput" accept=".cw,.txt,.html">
 </div>
 
 <div id="tabs">
@@ -38,11 +37,7 @@ input[type=file] { display:none; }
 </div>
 
 <div id="container">
-    <div id="editor" contenteditable="true">
-Set(body){
-    (div){ "Hello Compect Web!" }
-}
-    </div>
+    <div id="editor" style="width:100%;height:100%;"></div>
     <div id="preview"></div>
     <div id="guide">
 <h2>Compect Web 문법 안내서 (업데이트)</h2>
@@ -66,22 +61,6 @@ Set(basic){
 <h3>2. 스타일(let styles) 사용</h3>
 <p>- <code>let styles = [ ... ]</code> → <code>&lt;style&gt; ... &lt;/style&gt;</code> 로 변환</p>
 <p>- <code>*{ ... }</code> → HTML의 모든 요소에 적용 (CSS 전체 선택자)</p>
-<pre>
-let styles = [
-    *{
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
-]
-</pre>
-<p>- 다른 CSS 선택자도 그대로 사용 가능:</p>
-<pre>
-let styles = [
-    h1{ color: red; }
-    p{ font-size: 16px; }
-]
-</pre>
 
 <h3>3. 변수 / 비교 / 딕셔너리</h3>
 <pre>
@@ -113,6 +92,8 @@ if x == 10
     </div>
 </div>
 
+<!-- Monaco Editor -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs/loader.js"></script>
 <script>
 // ---- Compect Web 트랜스파일러 ----
 function parseCompect(code){
@@ -162,15 +143,55 @@ function parseCompect(code){
     return html;
 }
 
-// ---- 실시간 미리보기 ----
-const editorDiv = document.getElementById('editor');
-const previewDiv = document.getElementById('preview');
+// ---- Monaco Editor 초기화 ----
+require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs' }});
+require(['vs/editor/editor.main'], function() {
+    monaco.languages.register({ id: 'compectweb' });
 
-function updatePreview(){
-    const code = editorDiv.innerText;
-    previewDiv.innerHTML = parseCompect(code);
+    monaco.languages.setMonarchTokensProvider('compectweb', {
+        tokenizer: {
+            root: [
+                [/\bSet\(/, "keyword"],
+                [/\b(let|if)\b/, "keyword"],
+                [/\bfunction\b/, "keyword"],
+                [/\*{/, "operator"],
+                [/\{.*\}/, "attribute"],
+                [/\(.*\)/, "tag"],
+                [/".*?"/, "string"],
+            ]
+        }
+    });
 
-    // inline onclick 실행
+    monaco.languages.registerCompletionItemProvider('compectweb', {
+        provideCompletionItems: () => {
+            const suggestions = [
+                { label: 'Set(head){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(head){' },
+                { label: 'Set(body){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(body){' },
+                { label: 'let styles = [*{ ... }]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let styles = [\n\t*{\n\t\t\n\t}\n]' },
+                { label: '(div){ ... }', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '(div){ "$1" }' },
+                { label: '<function name(){...}>', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '<function $1(){\n\t\n}>' }
+            ];
+            return { suggestions: suggestions };
+        }
+    });
+
+    window.editor = monaco.editor.create(document.getElementById('editor'), {
+        value: 'Set(body){\n    (div){ "Hello Compect Web!" }\n}',
+        language: 'compectweb',
+        theme: 'vs-dark',
+        automaticLayout: true
+    });
+
+    editor.onDidChangeModelContent(() => {
+        const code = editor.getValue();
+        document.getElementById('preview').innerHTML = parseCompect(code);
+        attachInlineScripts();
+    });
+});
+
+// ---- inline onclick 실행 ----
+function attachInlineScripts(){
+    const previewDiv = document.getElementById('preview');
     const buttons = previewDiv.querySelectorAll('[onclick]');
     buttons.forEach(btn => {
         const fnStr = btn.getAttribute('onclick');
@@ -178,9 +199,6 @@ function updatePreview(){
         catch(e){ console.error(e); }
     });
 }
-
-editorDiv.addEventListener('input', updatePreview);
-updatePreview();
 
 // ---- Snippets ----
 const snippetTemplates = {
@@ -201,14 +219,18 @@ const snippetTemplates = {
 
 function insertSnippet(name){
     const snippet = snippetTemplates[name] || '';
-    editorDiv.innerText += "\n" + snippet;
-    updatePreview();
+    const model = editor.getModel();
+    const pos = editor.getPosition();
+    model.applyEdits([{
+        range: new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column),
+        text: snippet
+    }]);
 }
 
 // ---- 파일 다운로드 ----
 function downloadFile(type){
     let content, filename, mime;
-    const code = editorDiv.innerText;
+    const code = editor.getValue();
 
     if(type === 'cw'){
         content = code;
@@ -237,26 +259,73 @@ const fileInput = document.getElementById('fileInput');
 fileInput.addEventListener('change', (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+
     const reader = new FileReader();
     reader.onload = function(ev){
-        editorDiv.innerText = ev.target.result;
-        updatePreview();
+        let content = ev.target.result;
+
+        if(file.name.endsWith('.cw') || file.name.endsWith('.txt')){
+            editor.setValue(content);
+        } else if(file.name.endsWith('.html')){
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, 'text/html');
+            editor.setValue(htmlToCompect(doc));
+        }
     };
     reader.readAsText(file);
 });
+
+// ---- HTML → Compect Web 변환 ----
+function htmlToCompect(doc){
+    let cw = "";
+
+    // 스타일
+    const styles = doc.querySelectorAll('style');
+    if(styles.length){
+        cw += "let styles = [\n";
+        styles.forEach(s => { cw += s.textContent.trim() + "\n"; });
+        cw += "]\n\n";
+    }
+
+    // 스크립트
+    const scripts = doc.querySelectorAll('script');
+    scripts.forEach(s => { cw += `<${s.textContent.trim()}>\n`; });
+
+    // body
+    const body = doc.body;
+    if(body){
+        cw += "Set(body){\n";
+        body.childNodes.forEach(node => { cw += nodeToCw(node) + "\n"; });
+        cw += "}\n";
+    }
+
+    return cw;
+}
+
+// 단순 태그 → Compect Web
+function nodeToCw(node){
+    if(node.nodeType === 3) return `"${node.textContent.trim()}"`;
+    if(node.nodeType !== 1) return "";
+
+    const tag = node.tagName.toLowerCase();
+    const attrs = [];
+    for(let i=0;i<node.attributes.length;i++){
+        const a = node.attributes[i];
+        attrs.push(`${a.name}:"${a.value}"`);
+    }
+    const attrStr = attrs.length ? ` ~>[${attrs.join(", ")}]` : "";
+    const children = Array.from(node.childNodes).map(nodeToCw).join(" ");
+    return `(${tag}${attrStr}){ ${children} }`;
+}
 
 // ---- 탭 기능 ----
 function showTab(tab){
     document.getElementById('editor').style.display = tab==='editor' ? 'block':'none';
     document.getElementById('preview').style.display = tab==='preview' ? 'block':'none';
     document.getElementById('guide').style.display = tab==='guide' ? 'block':'none';
-
-    document.querySelectorAll('#tabs button').forEach(b=>{
-        b.classList.remove('active');
-    });
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
     document.querySelector(`#tabs button[onclick="showTab('${tab}')"]`).classList.add('active');
 }
 </script>
-
 </body>
 </html>
