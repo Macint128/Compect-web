@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
@@ -8,13 +8,76 @@
 <title>Compect Web IDE</title>
 <link rel="apple-touch-icon" href="icon.png" />
 <meta name="apple-mobile-web-app-title" content="Compect Web IDE" />
-<link rel="stylesheet" href="style.css" />
+<style>
+/* --- 전체 UI 스타일 --- */
+body {
+    margin: 0;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #111;
+    color: #fff;
+    border-radius: 30px;
+}
+#toolbar {
+    display: flex;
+    gap: 5px;
+    padding: 8px;
+    background: #222;
+    border-radius: 30px;
+    align-items: center;
+}
+#toolbar button {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+#toolbar button:hover { background: #666; }
+#tabs {
+    display: flex;
+    background: #333;
+    border-radius: 30px;
+    overflow: hidden;
+}
+#tabs button {
+    flex: 1;
+    padding: 8px;
+    color: white;
+    background: #333;
+    border: none;
+    cursor: pointer;
+    border-radius: 20px;
+}
+#tabs button.active { background: #555; }
+#container {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    border-radius: 30px;
+}
+#editor, #preview, #guide {
+    flex: 1;
+    padding: 10px;
+    overflow: auto;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
+#editor { background: #1e1e1e; color: #fff; }
+#preview { border-left: 1px solid #ccc; background: #f9f9f9; color: #000; }
+#guide { display: none; background: #f0f0f0; color: #000; }
+input[type="file"] { display: none; }
+.monaco-editor { border-radius: 20px !important; overflow: hidden; }
+</style>
 </head>
 <body>
-
 <div id="toolbar">
     <button onclick="insertSnippet('set')">Set 기본 구조</button>
-    <button onclick="insertSnippet('cat')">Set(cat)</button>
+    <button onclick="insertSnippet('btn')">버튼</button>
     <button onclick="downloadFile('cw')">.cw 다운로드</button>
     <button onclick="downloadFile('html')">.html 다운로드</button>
     <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
@@ -31,33 +94,142 @@
     <div id="editor" style="width:100%;height:100%;"></div>
     <div id="preview"></div>
     <div id="guide">
-<h2>Compect Web 문법 안내서</h2>
-<h3>Set(cat): 고양이 이모지</h3>
-<pre>
-Set(cat): 
-  🐱 고양이 이모지 표시
-</pre>
-<h3>기본 구조</h3>
-<pre>
-Set(head){ ... }
-Set(body){ ... }
-let styles = [ *{ ... } ]
-</pre>
-<h3>스크립트</h3>
-<pre>
-&lt;function greet(){ ... }&gt;
-(button ~>[onclick:"greet()"]){ "Click me" }
-</pre>
-<h3>iOS 웹앱</h3>
-<pre>
-(meta ~>[name:"apple-mobile-web-app-capable", content:"yes"]){ }
-(link ~>[rel:"apple-touch-icon", href:"icon.png"]){ }
-(meta ~>[name:"apple-mobile-web-app-title", content:"타이틀"]){ }
-</pre>
-</div>
+        <h2>Compect Web 문법 안내서</h2>
+        <pre>
+Set(basic){
+    Set(head){
+        {lang:en}
+        {title:"Page Title"}
+        let styles = [
+            *{ box-sizing:border-box }
+        ]
+        let script = [
+            function greet(){ ... }
+        ]
+    }
+    Set(body){
+        (div){ "Content here" }
+    }
+}
+        </pre>
+        <p>* CSS는 let styles 배열에, JS는 let script 배열에 넣어야 함</p>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs/loader.js"></script>
-<script src="main.js"></script>
+<script>
+require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs' }});
+require(['vs/editor/editor.main'], function() {
+    monaco.languages.register({ id: 'compectweb' });
+    monaco.languages.setMonarchTokensProvider('compectweb', {
+        tokenizer: { root: [
+            [/\bSet\(/, "keyword"],
+            [/\b(let|if|else|for|while)\b/, "keyword"],
+            [/\bfunction\b/, "keyword"],
+            [/\*{/, "operator"],
+            [/\{.*\}/, "attribute"],
+            [/\(.*\)/, "tag"],
+            [/".*?"/, "string"],
+        ]}
+    });
+    monaco.languages.registerCompletionItemProvider('compectweb', {
+        provideCompletionItems: () => {
+            return { suggestions: [
+                { label: 'Set(head){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(head){' },
+                { label: 'Set(body){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(body){' },
+                { label: 'let styles = [*{ ... }]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let styles = [\n\t*{\n\t\t\n\t}\n]' },
+                { label: 'let script = [function ...]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let script = [\n\tfunction $1(){\n\t\t\n\t}\n]' },
+                { label: '(div){ ... }', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '(div){ "$1" }' }
+            ]};
+        }
+    });
+
+    window.editor = monaco.editor.create(document.getElementById('editor'), {
+        value: [
+            'Set(head){',
+            '    {lang:en}',
+            '    {title:"Compect Web Sample"}',
+            '    let styles = [',
+            'body { display:flex; align-items:center; justify-content:center; height:100vh; background:#111; color:#fff; }',
+            '    ]',
+            '    let script = [',
+            'function greet(){ alert("Hello!"); }',
+            '    ]',
+            '}',
+            '',
+            'Set(body){',
+            '    (div){ "Hello Compect Web!" }',
+            '}'
+        ].join('\n'),
+        language: 'compectweb',
+        theme: 'vs-dark',
+        automaticLayout: true
+    });
+
+    function showTab(id){
+        ['editor','preview','guide'].forEach(x=>{
+            document.getElementById(x).style.display = (x===id)?'block':'none';
+        });
+        document.querySelectorAll('#tabs button').forEach(b=>{
+            b.classList.toggle('active', b.textContent.toLowerCase()===id);
+        });
+    }
+    showTab('editor');
+
+    function insertSnippet(name){
+        const templates = {
+            "set": 'Set(basic){\n\tSet(head){\n\t\t{lang:en}\n\t\t{title:"Page Title"}\n\t\tlet styles = [\n\t\t\t*{ box-sizing:border-box }\n\t\t]\n\t\tlet script = [\n\t\t\tfunction greet(){ alert("Hello!"); }\n\t\t]\n\t}\n\tSet(body){\n\t\t(div){ "Content here" }\n\t}\n}',
+            "btn": '(button ~>[onclick:"greet()"]){ "Click me" }'
+        };
+        const snippet = templates[name] || '';
+        const model = editor.getModel();
+        const pos = editor.getPosition();
+        model.applyEdits([{ range: new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column), text: snippet }]);
+    }
+
+    function parseCompect(code){
+        // 간단 변환: CW 코드를 style/script/head/body HTML로 변환
+        // 실제 IDE용으로는 위에 제공한 robust parser 사용
+        let html = '';
+        const styleMatch = code.match(/let styles = \[([\s\S]*?)\]/);
+        if(styleMatch) html += `<style>${styleMatch[1]}</style>\n`;
+        const scriptMatch = code.match(/let script = \[([\s\S]*?)\]/);
+        if(scriptMatch) html += `<script>${scriptMatch[1]}</script>\n`;
+        const bodyMatch = code.match(/Set\(body\)\{([\s\S]*?)\}/);
+        if(bodyMatch) html += `<body>${bodyMatch[1]}</body>\n`;
+        return html;
+    }
+
+    function updatePreview(){
+        const html = parseCompect(editor.getValue());
+        const preview = document.getElementById('preview');
+        preview.innerHTML = html;
+    }
+    editor.onDidChangeModelContent(()=>updatePreview());
+    updatePreview();
+
+    function downloadFile(type){
+        let content='', filename='';
+        if(type==='cw'){ content = editor.getValue(); filename='page.cw'; }
+        else{ content = '<!DOCTYPE html>\n<html>\n'+parseCompect(editor.getValue())+'</html>'; filename='page.html'; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'}));
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    document.getElementById('fileInput').addEventListener('change', e=>{
+        const f=e.target.files[0];
+        if(!f) return;
+        const reader=new FileReader();
+        reader.onload=ev=>{
+            editor.setValue(ev.target.result);
+        };
+        reader.readAsText(f);
+    });
+});
+</script>
 </body>
 </html>
