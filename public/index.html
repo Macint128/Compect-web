@@ -9,9 +9,14 @@ body { margin:0; font-family:sans-serif; display:flex; flex-direction:column; he
 #toolbar { display:flex; gap:5px; padding:5px; background:#222; }
 #toolbar button { background:#444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; }
 #toolbar button:hover { background:#666; }
-#container { flex:1; display:flex; flex-direction:row; }
-#editor { flex:1; border-right:1px solid #ccc; padding:5px; background:#1e1e1e; color:white; font-family:monospace; overflow:auto; white-space:pre; }
-#preview { flex:1; overflow:auto; padding:10px; background:#f9f9f9; }
+#tabs { display:flex; background:#333; }
+#tabs button { flex:1; padding:5px; color:white; background:#333; border:none; cursor:pointer; }
+#tabs button.active { background:#555; }
+#container { flex:1; display:flex; flex-direction:row; overflow:hidden; }
+#editor, #preview, #guide { flex:1; padding:5px; overflow:auto; }
+#editor { border-right:1px solid #ccc; background:#1e1e1e; color:white; font-family:monospace; white-space:pre; }
+#preview { border-left:1px solid #ccc; background:#f9f9f9; }
+#guide { display:none; background:#f0f0f0; color:#000; }
 input[type=file] { display:none; }
 </style>
 </head>
@@ -26,6 +31,12 @@ input[type=file] { display:none; }
     <input type="file" id="fileInput" accept=".cw,.txt">
 </div>
 
+<div id="tabs">
+    <button class="active" onclick="showTab('editor')">Editor</button>
+    <button onclick="showTab('preview')">Preview</button>
+    <button onclick="showTab('guide')">Guide</button>
+</div>
+
 <div id="container">
     <div id="editor" contenteditable="true">
 Set(body){
@@ -33,6 +44,48 @@ Set(body){
 }
     </div>
     <div id="preview"></div>
+    <div id="guide">
+<h2>Compect Web 문법 안내서</h2>
+<h3>1. 기본 구조</h3>
+<pre>
+Set(basic){
+    Set(head){
+        {lang:en}
+        {title:"Page Title"}
+        let styles = [
+            *{ box-sizing:border-box }
+        ]
+    }
+    Set(body){
+        (div){ "Content here" }
+    }
+}
+</pre>
+<h3>2. 변수 / 비교 / 딕셔너리</h3>
+<pre>
+let x = 10
+if x == 10
+{ key1: value1, key2: value2 }
+</pre>
+<h3>3. 스크립트 사용</h3>
+<pre>
+<function greet(){
+    alert("Hello!");
+}>
+(button ~>[onclick:"greet()"]){ "Click me" }
+</pre>
+<h3>4. Snippets</h3>
+<pre>
+- Set 기본 구조
+- 버튼
+- 스타일: let styles = [ *{ ... } ]
+</pre>
+<h3>5. 파일 확장자</h3>
+<pre>
+.cw  -> Compect Web 코드
+.html -> 브라우저에서 실행 가능한 HTML
+</pre>
+    </div>
 </div>
 
 <script>
@@ -91,6 +144,14 @@ const previewDiv = document.getElementById('preview');
 function updatePreview(){
     const code = editorDiv.innerText;
     previewDiv.innerHTML = parseCompect(code);
+
+    // inline onclick 실행
+    const buttons = previewDiv.querySelectorAll('[onclick]');
+    buttons.forEach(btn => {
+        const fnStr = btn.getAttribute('onclick');
+        try { btn.onclick = new Function(fnStr); } 
+        catch(e){ console.error(e); }
+    });
 }
 
 editorDiv.addEventListener('input', updatePreview);
@@ -151,7 +212,6 @@ const fileInput = document.getElementById('fileInput');
 fileInput.addEventListener('change', (e)=>{
     const file = e.target.files[0];
     if(!file) return;
-
     const reader = new FileReader();
     reader.onload = function(ev){
         editorDiv.innerText = ev.target.result;
@@ -159,6 +219,18 @@ fileInput.addEventListener('change', (e)=>{
     };
     reader.readAsText(file);
 });
+
+// ---- 탭 기능 ----
+function showTab(tab){
+    document.getElementById('editor').style.display = tab==='editor' ? 'block':'none';
+    document.getElementById('preview').style.display = tab==='preview' ? 'block':'none';
+    document.getElementById('guide').style.display = tab==='guide' ? 'block':'none';
+
+    document.querySelectorAll('#tabs button').forEach(b=>{
+        b.classList.remove('active');
+    });
+    document.querySelector(`#tabs button[onclick="showTab('${tab}')"]`).classList.add('active');
+}
 </script>
 
 </body>
