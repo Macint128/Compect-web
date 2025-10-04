@@ -28,6 +28,7 @@ input[type=file] { display:none; }
 <div id="toolbar">
     <button onclick="insertSnippet('set')">Set 기본 구조</button>
     <button onclick="insertSnippet('btn')">버튼</button>
+    <button onclick="insertSnippet('ios-head')">iOS head</button>
     <button onclick="downloadFile('cw')">.cw 다운로드</button>
     <button onclick="downloadFile('html')">.html 다운로드</button>
     <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
@@ -44,54 +45,29 @@ input[type=file] { display:none; }
     <div id="editor" style="width:100%;height:100%;"></div>
     <div id="preview"></div>
     <div id="guide">
-<h2>Compect Web 문법 안내서 (업데이트)</h2>
+<h2>Compect Web 문법 안내서</h2>
 
 <h3>1. 기본 구조</h3>
 <pre>
-Set(basic){
-    Set(head){
-        {lang:en}            // HTML lang
-        {title:"Page Title"} // 페이지 제목
-        let styles = [       // CSS 스타일
-            *{ box-sizing:border-box } // 모든 요소에 적용
-        ]
-    }
-    Set(body){
-        (div){ "Content here" } // 본문 내용
-    }
-}
+Set(head){ ... }
+Set(body){ ... }
+let styles = [ *{ ... } ]
 </pre>
 
-<h3>2. 스타일(let styles) 사용</h3>
-<p>- <code>let styles = [ ... ]</code> → <code>&lt;style&gt; ... &lt;/style&gt;</code> 로 변환</p>
-<p>- <code>*{ ... }</code> → HTML의 모든 요소에 적용 (CSS 전체 선택자)</p>
+<h3>2. CSS</h3>
+<p>- 배열 안에 직접 CSS 블록 작성 가능</p>
 
-<h3>3. 변수 / 비교 / 딕셔너리</h3>
+<h3>3. 스크립트</h3>
 <pre>
-let x = 10
-if x == 10
-{ key1: value1, key2: value2 }
-</pre>
-
-<h3>4. 스크립트 사용</h3>
-<pre>
-&lt;function greet(){
-    alert("Hello!");
-}&gt;
+&lt;function greet(){ ... }&gt;
 (button ~>[onclick:"greet()"]){ "Click me" }
 </pre>
 
-<h3>5. Snippets</h3>
+<h3>4. iOS 웹앱</h3>
 <pre>
-- Set 기본 구조
-- 버튼
-- 스타일: let styles = [ *{ ... } ]
-</pre>
-
-<h3>6. 파일 확장자</h3>
-<pre>
-.cw  -> Compect Web 코드
-.html -> 브라우저에서 실행 가능한 HTML
+(meta ~>[name:"apple-mobile-web-app-capable", content:"yes"]){ }
+(link ~>[rel:"apple-touch-icon", href:"icon.png"]){ }
+(meta ~>[name:"apple-mobile-web-app-title", content:"타이틀"]){ }
 </pre>
     </div>
 </div>
@@ -102,11 +78,11 @@ if x == 10
 // ---- Compect Web 트랜스파일러 ----
 function parseCompect(code){
     let html = "";
-    const stack = [];
     const lines = code.split('\n');
+    const stack = [];
 
-    for (let line of lines){
-        line = line.trim();
+    for(let i=0;i<lines.length;i++){
+        let line = lines[i].trim();
         if(!line || line.startsWith("//")) continue;
 
         const mSet = line.match(/^Set\((\w+)\)\{/);
@@ -114,14 +90,20 @@ function parseCompect(code){
 
         if(line === "}"){ if(stack.length) html += `</${stack.pop()}>`; continue; }
 
+        // styles 배열 처리 (그대로 CSS 블록)
         if(line.startsWith("let styles")){
-            const cssMatch = line.match(/\[\s*(.*)\s*\]/s);
-            if(cssMatch) html += `<style>${cssMatch[1]}</style>`;
+            const cssLines = [];
+            i++;
+            while(i<lines.length && !lines[i].trim().startsWith("]")){
+                cssLines.push(lines[i]);
+                i++;
+            }
+            html += "<style>\n" + cssLines.join("\n") + "\n</style>";
             continue;
         }
 
-        const mScript = line.match(/^<(.*)>$/);
-        if(mScript){ html += `<script>${mScript[1]}<\/script>`; continue; }
+        const mScript = line.match(/^<function\s([\s\S]*)>$/);
+        if(mScript){ html += `<script>${mScript[1]}</script>`; continue; }
 
         const mTagAttr = line.match(/^\((\w+)\s*~>\[(.*)\]\)\{(.*)\}$/);
         if(mTagAttr){
@@ -155,40 +137,40 @@ require(['vs/editor/editor.main'], function() {
     monaco.languages.setMonarchTokensProvider('compectweb', {
         tokenizer: {
             root: [
-                [/\bSet\(/, "keyword"],
-                [/\b(let|if)\b/, "keyword"],
-                [/\bfunction\b/, "keyword"],
-                [/\*{/, "operator"],
-                [/\{.*\}/, "attribute"],
-                [/\(.*\)/, "tag"],
+                [/\b(Set|let|if|function)\b/, "keyword"],
+                [/\(\w+\)/, "tag"],
+                [/~>\[[^\]]*\]/, "attribute"],
+                [/<function.*?>/, "function"],
+                [/\*\{[^}]*\}/, "operator"],
                 [/".*?"/, "string"],
+                [/\{[^}]*\}/, "object"]
             ]
         }
     });
 
-    monaco.languages.registerCompletionItemProvider('compectweb', {
-        provideCompletionItems: () => {
-            const suggestions = [
-                { label: 'Set(head){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(head){' },
-                { label: 'Set(body){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(body){' },
-                { label: 'let styles = [*{ ... }]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let styles = [\n\t*{\n\t\t\n\t}\n]' },
-                { label: '(div){ ... }', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '(div){ "$1" }' },
-                { label: '<function name(){...}>', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '<function $1(){\n\t\n}>' }
-            ];
-            return { suggestions: suggestions };
-        }
+    monaco.editor.defineTheme('cw-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+            { token: 'keyword', foreground: 'ff79c6', fontStyle: 'bold' },
+            { token: 'tag', foreground: '8be9fd' },
+            { token: 'attribute', foreground: '50fa7b' },
+            { token: 'function', foreground: 'bd93f9' },
+            { token: 'operator', foreground: 'f1fa8c' },
+            { token: 'string', foreground: 'f1fa8c' },
+            { token: 'object', foreground: 'ffb86c' }
+        ]
     });
 
     window.editor = monaco.editor.create(document.getElementById('editor'), {
         value: 'Set(body){\n    (div){ "Hello Compect Web!" }\n}',
         language: 'compectweb',
-        theme: 'vs-dark',
+        theme: 'cw-dark',
         automaticLayout: true
     });
 
     editor.onDidChangeModelContent(() => {
-        const code = editor.getValue();
-        document.getElementById('preview').innerHTML = parseCompect(code);
+        document.getElementById('preview').innerHTML = parseCompect(editor.getValue());
         attachInlineScripts();
     });
 });
@@ -218,117 +200,56 @@ const snippetTemplates = {
         (div){ "Content here" }
     }
 }`,
-    "btn": `(button ~>[onclick:"greet()"]){ "Click me" }`
+    "btn": `(button ~>[onclick:"greet()"]){ "Click me" }`,
+    "ios-head": `Set(head){
+    {lang:en}
+    {title:"Compect Web Page"}
+    (meta ~>[charset:"UTF-8"]){ }
+    (meta ~>[name:"viewport", content:"width=device-width, initial-scale=1, user-scalable=no"]){ }
+    (meta ~>[name:"apple-mobile-web-app-capable", content:"yes"]){ }
+    (meta ~>[name:"apple-mobile-web-app-status-bar-style", content:"black-translucent"]){ }
+    (link ~>[rel:"apple-touch-icon", href:"icon.png"]){ }
+    (meta ~>[name:"apple-mobile-web-app-title", content:"Compect Web Page"]){ }
+}`
 };
 
-function insertSnippet(name){
-    const snippet = snippetTemplates[name] || '';
-    const model = editor.getModel();
-    const pos = editor.getPosition();
-    model.applyEdits([{
-        range: new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column),
-        text: snippet
+function insertSnippet(key){
+    const sel = editor.getSelection();
+    editor.executeEdits("", [{
+        range: sel,
+        text: snippetTemplates[key]
     }]);
 }
 
 // ---- 파일 다운로드 ----
 function downloadFile(type){
-    let content, filename, mime;
-    const code = editor.getValue();
-
-    if(type === 'cw'){
-        content = code;
-        filename = 'page.cw';
-        mime = 'application/octet-stream';
-    } else if(type === 'html'){
-        content = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<title>Compect Web Page</title>\n</head>\n<body>\n' +
-                  parseCompect(code) + '\n</body>\n</html>';
-        filename = 'page.html';
-        mime = 'text/html';
-    } else { return; }
-
-    const blob = new Blob([content], {type: mime});
-    const url = URL.createObjectURL(blob);
+    let content = "";
+    if(type==="cw") content = editor.getValue();
+    else content = parseCompect(editor.getValue());
+    const blob = new Blob([content], {type:'text/plain'});
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = `page.${type}`;
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 // ---- 파일 업로드 ----
-const fileInput = document.getElementById('fileInput');
-fileInput.addEventListener('change', (e)=>{
+document.getElementById('fileInput').addEventListener('change', e=>{
     const file = e.target.files[0];
-    if(!file) return;
-
     const reader = new FileReader();
-    reader.onload = function(ev){
-        let content = ev.target.result;
-
-        if(file.name.endsWith('.cw') || file.name.endsWith('.txt')){
-            editor.setValue(content);
-        } else if(file.name.endsWith('.html')){
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(content, 'text/html');
-            editor.setValue(htmlToCompect(doc));
-        }
-    };
+    reader.onload = function(evt){
+        editor.setValue(evt.target.result);
+    }
     reader.readAsText(file);
 });
 
-// ---- HTML → Compect Web 변환 ----
-function htmlToCompect(doc){
-    let cw = "";
-
-    // 스타일
-    const styles = doc.querySelectorAll('style');
-    if(styles.length){
-        cw += "let styles = [\n";
-        styles.forEach(s => { cw += s.textContent.trim() + "\n"; });
-        cw += "]\n\n";
-    }
-
-    // 스크립트
-    const scripts = doc.querySelectorAll('script');
-    scripts.forEach(s => { cw += `<${s.textContent.trim()}>\n`; });
-
-    // body
-    const body = doc.body;
-    if(body){
-        cw += "Set(body){\n";
-        body.childNodes.forEach(node => { cw += nodeToCw(node) + "\n"; });
-        cw += "}\n";
-    }
-
-    return cw;
-}
-
-// 단순 태그 → Compect Web
-function nodeToCw(node){
-    if(node.nodeType === 3) return `"${node.textContent.trim()}"`;
-    if(node.nodeType !== 1) return "";
-
-    const tag = node.tagName.toLowerCase();
-    const attrs = [];
-    for(let i=0;i<node.attributes.length;i++){
-        const a = node.attributes[i];
-        attrs.push(`${a.name}:"${a.value}"`);
-    }
-    const attrStr = attrs.length ? ` ~>[${attrs.join(", ")}]` : "";
-    const children = Array.from(node.childNodes).map(nodeToCw).join(" ");
-    return `(${tag}${attrStr}){ ${children} }`;
-}
-
-// ---- 탭 기능 ----
+// ---- 탭 전환 ----
 function showTab(tab){
-    document.getElementById('editor').style.display = tab==='editor' ? 'block':'none';
-    document.getElementById('preview').style.display = tab==='preview' ? 'block':'none';
-    document.getElementById('guide').style.display = tab==='guide' ? 'block':'none';
-    document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
-    document.querySelector(`#tabs button[onclick="showTab('${tab}')"]`).classList.add('active');
+    document.getElementById('editor').style.display = tab==='editor'?'block':'none';
+    document.getElementById('preview').style.display = tab==='preview'?'block':'none';
+    document.getElementById('guide').style.display = tab==='guide'?'block':'none';
+    document.querySelectorAll('#tabs button').forEach(btn=>btn.classList.remove('active'));
+    document.querySelector(`#tabs button[onclick*="${tab}"]`).classList.add('active');
 }
 </script>
 </body>
