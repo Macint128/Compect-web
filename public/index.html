@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
@@ -8,243 +8,146 @@
 <title>Compect Web IDE</title>
 <link rel="apple-touch-icon" href="icon.png" />
 <meta name="apple-mobile-web-app-title" content="Compect Web IDE" />
+
 <style>
-body {
-    margin: 0;
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background: #111;
-    color: #fff;
-    border-radius: 30px;
-}
-
-#toolbar {
-    display: flex;
-    gap: 5px;
-    padding: 8px;
-    background: #222;
-    border-radius: 30px;
-    align-items: center;
-}
-
-#toolbar button {
-    background: #444;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-}
-
-#toolbar button:hover { background: #666; }
-
-#tabs {
-    display: flex;
-    background: #333;
-    border-radius: 30px;
-    overflow: hidden;
-}
-
-#tabs button {
-    flex: 1;
-    padding: 8px;
-    color: white;
-    background: #333;
-    border: none;
-    cursor: pointer;
-    border-radius: 20px;
-}
-
-#tabs button.active { background: #555; }
-
-#container {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-}
-
-#editor, #preview, #guide {
-    position: absolute;
-    top: 0; left: 0; bottom: 0; right: 0;
-    padding: 10px;
-    overflow: auto;
-    border-radius: 20px;
-    background-clip: padding-box;
-}
-
-#editor { background: #1e1e1e; color: #fff; z-index: 3; }
-#preview, #guide { display: none; background: #f9f9f9; color: #000; z-index: 2; }
-
-input[type="file"] { display: none; }
-.monaco-editor { border-radius: 20px !important; overflow: hidden; }
+    body{margin:0;font-family:sans-serif;display:flex;flex-direction:column;height:100vh;background:#1e1e1e;color:#fff}
+    #toolbar{display:flex;gap:5px;padding:6px;background:#252526;box-shadow:0 2px 4px rgba(0,0,0,0.5)}
+    #toolbar button{background:#007acc;color:white;border:none;padding:6px 12px;border-radius:4px;font-weight:bold;cursor:pointer;transition:.2s}
+    #toolbar button:hover{background:#3399ff}
+    #tabs{display:flex;background:#333}
+    #tabs button{flex:1;padding:8px;color:white;background:#333;border:none;cursor:pointer;transition:.2s}
+    #tabs button.active{background:#007acc}
+    #container{flex:1;display:flex;flex-direction:row;overflow:hidden}
+    #editor,#preview,#guide{flex:1;padding:5px;overflow:auto}
+    #preview{border-left:1px solid #444;background:#1e1e1e}
+    #guide{display:none;background:#2a2a2a;color:#eee;padding:10px}
+    @media(max-width:800px){#container{flex-direction:column}#preview{border-left:none;border-top:1px solid #444;height:50%}}
 </style>
 </head>
 <body>
+
 <div id="toolbar">
-    <button onclick="insertSnippet('set')">Set 기본 구조</button>
-    <button onclick="insertSnippet('btn')">버튼</button>
-    <button onclick="downloadFile('cw')">.cw 다운로드</button>
-    <button onclick="downloadFile('html')">.html 다운로드</button>
-    <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
-    <input type="file" id="fileInput" accept=".cw,.txt,.html">
+  <button onclick="insertSnippet('set')">Set 기본</button>
+  <button onclick="insertSnippet('btn')">버튼</button>
+  <button onclick="downloadFile('cw')">.cw 다운로드</button>
+  <button onclick="downloadFile('html')">.html 다운로드</button>
+  <button onclick="document.getElementById('fileInput').click()">파일 업로드</button>
+  <input type="file" id="fileInput" accept=".cw,.txt,.html" style="display:none" onchange="handleFile(event)">
 </div>
 
 <div id="tabs">
-    <button class="active" onclick="showTab('editor')">Editor</button>
-    <button onclick="showTab('preview')">Preview</button>
-    <button onclick="showTab('guide')">Guide</button>
+  <button class="active" onclick="showTab('editor')">Editor</button>
+  <button onclick="showTab('preview')">Preview</button>
+  <button onclick="showTab('guide')">Guide</button>
 </div>
 
 <div id="container">
-    <div id="editor"></div>
-    <div id="preview"></div>
-    <div id="guide">
-        <h2>Compect Web 문법 안내서</h2>
-        <pre>
-Set(basic){
-    Set(head){
-        {lang:en}
-        {title:"Page Title"}
-        let styles = [
-            *{ box-sizing:border-box }
-        ]
-        let script = [
-            function greet(){ ... }
-        ]
-    }
-    Set(body){
-        (div){ "Content here" }
-    }
-}
-        </pre>
-        <p>* CSS는 let styles 배열에, JS는 let script 배열에 넣어야 함</p>
-    </div>
+  <div id="editor"></div>
+  <div id="preview"></div>
+  <div id="guide">
+    <h2>Compect Web 문법 안내서</h2>
+    <p>Set, let styles, &lt;function&gt;, (div), (button) 등 문법 사용법</p>
+    <p>CSS는 let styles = [ ... ] 안에 블록 그대로 작성</p>
+    <p>JS는 &lt;function name(){ ... }&gt;로 작성</p>
+    <p>HTML 구조는 (태그){ 내용 } 형식</p>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs/loader.js"></script>
 <script>
-require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs' }});
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.41.0/min/vs' }});
 require(['vs/editor/editor.main'], function() {
     monaco.languages.register({ id: 'compectweb' });
     monaco.languages.setMonarchTokensProvider('compectweb', {
         tokenizer: { root: [
             [/\bSet\(/, "keyword"],
-            [/\b(let|if|else|for|while)\b/, "keyword"],
+            [/\blet\b/, "keyword"],
             [/\bfunction\b/, "keyword"],
             [/\*{/, "operator"],
-            [/\{.*\}/, "attribute"],
             [/\(.*\)/, "tag"],
             [/".*?"/, "string"]
         ]}
     });
     monaco.languages.registerCompletionItemProvider('compectweb', {
-        provideCompletionItems: () => {
-            return { suggestions: [
-                { label: 'Set(head){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(head){' },
-                { label: 'Set(body){', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'Set(body){' },
-                { label: 'let styles = [*{ ... }]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let styles = [\n\t*{\n\t\t\n\t}\n]' },
-                { label: 'let script = [function ...]', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'let script = [\n\tfunction $1(){\n\t\t\n\t}\n]' },
-                { label: '(div){ ... }', kind: monaco.languages.CompletionItemKind.Snippet, insertText: '(div){ "$1" }' }
-            ]};
-        }
+        provideCompletionItems: () => ({
+            suggestions:[
+                { label:'Set(head){', kind:monaco.languages.CompletionItemKind.Keyword, insertText:'Set(head){' },
+                { label:'Set(body){', kind:monaco.languages.CompletionItemKind.Keyword, insertText:'Set(body){' },
+                { label:'let styles = [*{ ... }]', kind:monaco.languages.CompletionItemKind.Snippet, insertText:'let styles = [\n  *{\n  }\n]' },
+                { label:'(div){ ... }', kind:monaco.languages.CompletionItemKind.Snippet, insertText:'(div){ "$1" }' },
+                { label:'<function name(){...}>', kind:monaco.languages.CompletionItemKind.Snippet, insertText:'<function $1(){\n\n}>' }
+            ]
+        })
     });
 
     window.editor = monaco.editor.create(document.getElementById('editor'), {
-        value: [
-            'Set(head){',
-            '    {lang:en}',
-            '    {title:"Compect Web Sample"}',
-            '    let styles = [',
-            'body { display:flex; align-items:center; justify-content:center; height:100vh; background:#111; color:#fff; }',
-            '    ]',
-            '    let script = [',
-            'function greet(){ alert("Hello!"); }',
-            '    ]',
-            '}',
-            '',
-            'Set(body){',
-            '    (div){ "Hello Compect Web!" }',
-            '}'
-        ].join('\n'),
-        language: 'compectweb',
-        theme: 'vs-dark',
-        automaticLayout: true
+        value:'Set(body){\n  (div){ "Hello Compect Web!" }\n}',
+        language:'compectweb',
+        theme:'vs-dark',
+        automaticLayout:true
     });
 
-    function showTab(id){
-        ['editor','preview','guide'].forEach(x=>{
-            document.getElementById(x).style.display = (x===id)?'block':'none';
-        });
-        document.querySelectorAll('#tabs button').forEach(b=>{
-            b.classList.toggle('active', b.textContent.toLowerCase()===id);
-        });
-    }
-    showTab('editor');
-
-    function insertSnippet(name){
-        const templates = {
-            "set": 'Set(basic){\n\tSet(head){\n\t\t{lang:en}\n\t\t{title:"Page Title"}\n\t\tlet styles = [\n\t\t\t*{ box-sizing:border-box }\n\t\t]\n\t\tlet script = [\n\t\t\tfunction greet(){ alert("Hello!"); }\n\t\t]\n\t}\n\tSet(body){\n\t\t(div){ "Content here" }\n\t}\n}',
-            "btn": '(button ~>[onclick:"greet()"]){ "Click me" }'
-        };
-        const snippet = templates[name] || '';
-        const model = editor.getModel();
-        const pos = editor.getPosition();
-        model.applyEdits([{ range: new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column), text: snippet }]);
-    }
-
-    function parseCompect(code){
-        var html = '';
-        var styleMatch = code.match(/let styles = \[([\s\S]*?)\]/);
-        if(styleMatch) html += '<style>' + styleMatch[1] + '</style>\n';
-
-        var scriptMatch = code.match(/let script = \[([\s\S]*?)\]/);
-        if(scriptMatch) html += '<script>' + scriptMatch[1] + '<\/script>\n';
-
-        var bodyMatch = code.match(/Set\(body\)\{([\s\S]*?)\}/);
-        if(bodyMatch) html += bodyMatch[1] + '\n';
-
-        return html;
-    }
-
-    function updatePreview(){
-        var html = parseCompect(editor.getValue());
-        var preview = document.getElementById('preview');
-        preview.innerHTML = html;
-    }
-
-    editor.onDidChangeModelContent(()=>updatePreview());
-    updatePreview();
-
-    function downloadFile(type){
-        var content='', filename='';
-        if(type==='cw'){
-            content = editor.getValue();
-            filename='page.cw';
-        } else {
-            content = '<!DOCTYPE html>\n<html>\n'+parseCompect(editor.getValue())+'</html>';
-            filename='page.html';
-        }
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'}));
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
-
-    document.getElementById('fileInput').addEventListener('change', function(e){
-        var f = e.target.files[0];
-        if(!f) return;
-        var reader = new FileReader();
-        reader.onload = function(ev){
-            editor.setValue(ev.target.result);
-        };
-        reader.readAsText(f);
-    });
-
+    editor.onDidChangeModelContent(()=>{updatePreview()});
 });
+
+function updatePreview(){
+    const code = editor.getValue();
+    document.getElementById('preview').innerHTML = parseCompect(code);
+}
+
+function parseCompect(code){
+    // 간단한 변환기: let styles → <style>, (태그){...} → <태그>...</태그>, <function> 무시
+    let html = '';
+    const lines = code.split('\n');
+    let inStyles = false;
+    for(let line of lines){
+        line = line.trim();
+        if(line.startsWith('let styles')){ inStyles=true; html+='<style>'; continue;}
+        if(inStyles){
+            if(line.startsWith(']')){ inStyles=false; html+='</style>'; continue; }
+            html+=line+'\n';
+            continue;
+        }
+        let match = line.match(/^\((\w+)(?: ~>\[([^\]]+)\])?\)\{(.*)\}$/);
+        if(match){
+            const tag = match[1];
+            const attrs = match[2]? match[2].split(',').map(a=>a.split(':')).map(([k,v])=>`${k.trim()}="${v.trim().replace(/^"|"$/g,'')}"`).join(' '):'';
+            const content = match[3].trim();
+            html+=`<${tag} ${attrs}>${content}</${tag}>`;
+        }
+    }
+    return html;
+}
+
+function insertSnippet(type){
+    if(type==='set') editor.trigger('keyboard','type',{text:'Set(body){\n  (div){ "Hello" }\n}'});
+    if(type==='btn') editor.trigger('keyboard','type',{text:'(button){ "Click" }'});
+}
+
+function downloadFile(ext){
+    let filename = ext==='cw'?'code.cw':'code.html';
+    let blob;
+    if(ext==='cw'){ blob=new Blob([editor.getValue()],{type:'text/plain'});}
+    else{ blob=new Blob([parseCompect(editor.getValue())],{type:'text/html'});}
+    const link=document.createElement('a'); link.href=URL.createObjectURL(blob);
+    link.download=filename; link.click();
+}
+
+function showTab(tab){
+    document.getElementById('editor').style.display=tab==='editor'?'block':'none';
+    document.getElementById('preview').style.display=tab==='preview'?'block':'none';
+    document.getElementById('guide').style.display=tab==='guide'?'block':'none';
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelector(`#tabs button:nth-child(${tab==='editor'?1:tab==='preview'?2:3})`).classList.add('active');
+}
+
+function handleFile(event){
+    const file=event.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=e=>{editor.setValue(e.target.result);};
+    reader.readAsText(file);
+}
 </script>
 </body>
 </html>
